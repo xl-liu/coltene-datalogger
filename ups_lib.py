@@ -4,7 +4,7 @@ python script to read the battery status via I2C from the waveshare UPS hat
 https://www.waveshare.com/wiki/UPS_HAT_(C)
 '''
 
-import smbus
+import smbus2 as smbus
 import time
 
 # Config Register (R/W)
@@ -61,10 +61,10 @@ class Mode:
     BVOLT_CONTINUOUS        = 0x06      # bus voltage continuous
     SANDBVOLT_CONTINUOUS    = 0x07      # shunt and bus voltage continuous
 
-
 class INA219:
-    def __init__(self, i2c_bus=1, addr=0x40):
-        self.bus = smbus.SMBus(i2c_bus)
+    def __init__(self, i2c_bus, addr=0x43):
+        # self.bus = smbus.SMBus(i2c_bus)
+        self.bus = i2c_bus
         self.addr = addr
 
         # Set chip to known config values to start

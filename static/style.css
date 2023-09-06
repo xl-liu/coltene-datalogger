@@ -1,0 +1,87 @@
+/* style.css */
+body {
+    font-family: Helvetica, sans-serif;
+    margin: 20px;
+    padding: 0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 0px;
+}
+
+.botton {
+    /* background-color: #fff; */
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.titlebox {
+    border-bottom: 1px solid #000;
+    margin-bottom: 20px;
+}
+
+.titlebox h1 {
+    font-size: 24px;
+    color: #6600FF;
+}
+
+.box {
+    /* background-color: #fff; */
+    display: flex;
+    border-radius: 0px;
+    border-bottom: 1px solid #000;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.box h2 {
+    font-size: 20px;
+    color: #6600FF;
+}
+
+.box h3 {
+    font-size: 16px;
+    color: #6600FF;
+}
+
+.box pre {
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+.box p {
+    font-size: 12px;
+    color: #000000;
+    margin: 0;
+}
+
+.filelist {
+    font-size: 12px;
+    list-style: square;
+    padding-left: 0;
+  }
+
+.column {
+    float: left;
+}
+
+.left {
+    width: 15%;
+}
+
+.right {
+    width: 85%;
+}
+
+.link { color: #000000; } /* CSS link color (red) */
+.link:hover { color: #006eff; } /* CSS link hover (green) */
+  

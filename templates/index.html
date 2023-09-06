@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Datalogger</title>
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
+</head>
+<body>
+    <div class="titlebox">
+        <h1> Datalogger </h1>
+    </div>
+    <div class="box">
+        <div class="column left">
+            <h3> Recording: <span id="recording-status"></span> </h3>
+        </div>
+            <div class="column right">
+            <button id="recording-button">Start Recording</button>
+        </div>
+    </div>
+    <div class="box">
+        <div class="column left">
+            <h3> Battery Status </h3>
+        </div>
+        <div class="column right">
+            <p>
+                Percentage: 92 %
+                <br>
+                Voltage: 4.8 V
+                <br>
+                Current: 0.2 A
+                <br>
+                Fault: 
+            </p>
+        </div>
+    </div>
+    <div class="box">
+        <div class="column left">
+            <h3> Raspberry Pi Status </h3>
+        </div>
+        <div class="column right">
+            <p> 
+                Time: <span id="timestamp"></span>
+                <br>
+                Temperature: <span id="temperature"></span>&deg;C
+                <br>
+                Storage: / 16GB
+            </p>
+        </div>
+    </div>
+    <div class="box">
+        <div class="column left">
+            <h3>Log Files</h3>
+            <p> click filename to download </p>
+        </div>
+        <div class="column right">
+            <ul class="filelist">
+                {% for file in files %}
+                <li><a class="link" href="/download/{{ file }}" download="{{ file }}">{{ file }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let recording = false; // Get the recording state from the server
+
+        const recordingButton = document.getElementById("recording-button");
+        const temperatureDisplay = document.getElementById("temperature");
+        const recordingStatus = document.getElementById("recording-status");
+
+        fetch("/status")
+            .then(response => response.json())
+            .then(data => {
+                recording = data.recording;
+                updateRecordingStatus();
+                updateRcordingButtonLabel();
+            });
+
+        recordingButton.addEventListener("click", () => {
+            fetch("/start_stop_recording", { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    recording = data.recording;
+                    updateRecordingStatus();
+                    updateRecordingButtonLabel();
+                });
+        });
+
+        function updateRecordingStatus() {
+            if (recording) {
+                recordingStatus.innerText = "On";
+                recordingStatus.style.color = "green";
+            }
+            else {
+                recordingStatus.innerText = "Off";
+                recordingStatus.style.color = "red";
+            }
+        }
+        function updateRecordingButtonLabel() {
+            recordingButton.innerText = recording ? "Stop Recording" : "Start Recording";
+        }
+        function updateTemperature() {
+            fetch("status")
+                .then(response => response.json())
+                .then(data => {
+                    temperatureDisplay.innerText = data.temperature;
+                    document.getElementById("timestamp").innerText = data.timestamp;
+                });
+        }
+
+        // Start updating temperature immediately and periodically
+        updateTemperature();
+        setInterval(updateTemperature, 1000);
+    </script>
+</body>
+</html>
