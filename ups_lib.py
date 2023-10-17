@@ -4,7 +4,7 @@ python script to read the battery status via I2C from the waveshare UPS hat
 https://www.waveshare.com/wiki/UPS_HAT_(C)
 '''
 
-import smbus2 as smbus
+import smbus
 import time
 
 # Config Register (R/W)

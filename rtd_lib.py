@@ -3,7 +3,7 @@ python script to read temperature via I2C from the Sequent raspberry pi card
 based on https://github.com/SequentMicrosystems/rtd-rpi/tree/master/python
 '''
 
-import smbus2 as smbus
+import smbus
 import struct
 
 # bus = smbus.SMBus(1)    # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)
@@ -16,9 +16,9 @@ RTD_RESISTANCE_ADD = 59
 class tempADC():
     def __init__(self, i2c_bus, addr: hex = 0x40, stack: int = 0, n_channels: int = 7):
         self.addr = addr
+        self.stack = stack
         if self.stack < 0 or self.stack > 7:
             raise ValueError('Invalid stack level')
-        self.stack = stack
         self.n_channels = n_channels
         self.bus = i2c_bus
 
@@ -28,7 +28,7 @@ class tempADC():
         '''
         temp_list = []
         for i in range(self.n_channels):
-            temp_list.append(self.get_single_channel(i))
+            temp_list.append(self.get_single_channel(i+1))
         return temp_list
 
     def get_single_channel(self, channel: int):

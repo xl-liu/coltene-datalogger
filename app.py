@@ -3,6 +3,9 @@ import time
 import csv
 import os
 import threading
+import smbus
+from rtd_lib import tempADC
+from pijuice import PiJuice
 
 # ... (previous code)
 
@@ -10,20 +13,42 @@ app = Flask(__name__)
 recording = False  # Flag to control recording
 
 # I2C setup
-# bus = smbus2.SMBus(1)  # Use the appropriate I2C bus number
+bus = smbus.SMBus(1)
+temp_adc = tempADC(bus)
+pijuice = PiJuice(bus)
 
 # CSV file setup
 downloads_directory = "logdata"
 
 def get_pi_status():
-    # pi_temp = os.popen("vcgencmd measure_temp").readline()
-    # pi_temp = pi_temp.replace("temp=", "").strip()
-    pi_temp = 32.5
+    pi_temp = os.popen("vcgencmd measure_temp").readline()
+    pi_temp = pi_temp.replace("temp=", "").strip()
     pi_time = time.strftime("%Y-%m-%d %H:%M:%S")
     return pi_temp, pi_time
 
-# def get_battery_status():
+def get_battery_status():
 
+    temp_info = pijuice.status.GetBatteryTemperature()
+    if temp_info['error'] == 'NO_ERROR':
+        battery_temp = temp_info['data']
+    else:
+        battery_temp = 'N/A'
+
+    charge_info = pijuice.status.GetChargeLevel()
+    if charge_info['error'] == 'NO_ERROR':
+        battery_power = charge_info['data']
+    else:
+        battery_power = 'N/A'    
+    
+    faults_info = pijuice.status.GetFaultStatus()
+    if faults_info['error'] == 'NO_ERROR':
+        battery_faults = []
+        for fault, flag in faults_info['data'].items():
+            if flag: battery_faults.append(fault)
+    else:
+        battery_faults = 'N/A'
+
+    return battery_temp, battery_power, battery_faults
 
 @app.route("/")
 def index():
@@ -35,10 +60,14 @@ def index():
 @app.route("/status")
 def status():
     temperature, timestamp = get_pi_status()
+    battery_temp, battery_power, battery_faults = get_battery_status()
     return jsonify({ 
         "temperature": temperature,
         "timestamp": timestamp,
-        "recording": recording  # Pass recording status to the client
+        "recording": recording,  # Pass recording status to the client
+        "battery_temp": battery_temp,
+        "battery_power": battery_power,
+        "battery_faults": battery_faults
         })
 
 @app.route("/download/<filename>")
@@ -66,5 +95,7 @@ def start_stop_recording():
     return jsonify({"recording": recording})
 
 if __name__ == "__main__":
+    
     app.debug = True
     app.run(host="0.0.0.0", port=70)
+
