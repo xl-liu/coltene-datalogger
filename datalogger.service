@@ -1,0 +1,12 @@
+[Unit]
+Description=Datalogger App
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python /home/pi/coltene-datalogger/app.py
+WorkingDirectory=/home/pi/coltene-datalogger/
+User=root
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

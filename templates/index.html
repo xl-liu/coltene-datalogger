@@ -41,7 +41,7 @@
                 <br>
                 Temperature: <span id="temperature"></span>&deg;C
                 <br>
-                Storage: / 16GB
+                Storage: <span id="available_space"></span> GB / 16 GB
             </p>
         </div>
     </div>
@@ -63,15 +63,19 @@
         let recording = false; // Get the recording state from the server
 
         const recordingButton = document.getElementById("recording-button");
-        const temperatureDisplay = document.getElementById("temperature");
         const recordingStatus = document.getElementById("recording-status");
+        const temperatureDisplay = document.getElementById("temperature");
+        const storageDisplay = document.getElementById("available_space");
+        const batteryTempDisplay = document.getElementById("battery_temp");
+        const batteryPowerDisplay = document.getElementById("battery_power");
+        const batterFaultsDisplay = document.getElementById("battery_faults");
 
         fetch("/status")
             .then(response => response.json())
             .then(data => {
                 recording = data.recording;
                 updateRecordingStatus();
-                updateRcordingButtonLabel();
+                updateRecordingButtonLabel();
             });
 
         recordingButton.addEventListener("click", () => {
@@ -97,18 +101,22 @@
         function updateRecordingButtonLabel() {
             recordingButton.innerText = recording ? "Stop Recording" : "Start Recording";
         }
-        function updateTemperature() {
+        function updateStatus() {
             fetch("status")
                 .then(response => response.json())
                 .then(data => {
                     temperatureDisplay.innerText = data.temperature;
+                    storageDisplay.innerText = data.available_space;
+                    batteryTempDisplay.innerText = data.battery_temp;
+                    batteryPowerDisplay.innerText = data.battery_power;
+                    batterFaultsDisplay.innerText = data.battery_faults;
                     document.getElementById("timestamp").innerText = data.timestamp;
                 });
         }
 
-        // Start updating temperature immediately and periodically
-        updateTemperature();
-        setInterval(updateTemperature, 1000);
+        // Start updating pcb status immediately and periodically
+        updateStatus();
+        setInterval(updateStatus, 2000);
     </script>
 </body>
 </html>
