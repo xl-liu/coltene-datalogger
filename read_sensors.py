@@ -2,7 +2,7 @@ from ups_lib import INA219
 from rtd_lib import tempADC
 from pijuice_lib import PiJuice
 import os 
-
+import time 
 import smbus
 bus = smbus.SMBus(1)    # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)
 
@@ -44,3 +44,11 @@ print(get_available_space())
 # p = (bus_voltage - 3)/1.2*100
 # if(p > 100):p = 100
 # if(p < 0):p = 0
+
+if __name__ == "__main__":
+    while True:
+        temp = temp_adc.read_all_channels()
+        for i in range(temp_adc.n_channels):
+            print(f'channel {i+1}: {temp[i]}')
+        time.sleep(1)
+        

@@ -44,7 +44,11 @@ class tempADC():
         except Exception as e:
             self.bus.close()
             raise ValueError('Fail to communicate with the RTD card with message: \"' + str(e) + '\"')
-        return val[0]
+        reading = val[0]
+        # check for range
+        if reading <= -20 or reading >= 300:
+            reading = 0
+        return reading
 
     def getRes(self, channel: int):
         if channel < 1 or channel > 8:
@@ -84,7 +88,7 @@ class tempADC():
         c0 = -2.42522E+02
 
         # get RTD resistance
-        res = self.getRes(self.stack, channel)
+        res = self.getRes(channel)
 
         # do the math
         #   Rearrange a bit to make it friendlier (less expensive) to calculate

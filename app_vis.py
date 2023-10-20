@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, send_file, send_from_directory, jsonify
+from dash import Dash, dcc, html, Input, Output
 import time
 import csv
 import os
@@ -7,11 +8,24 @@ import smbus
 from rtd_lib import tempADC
 from pijuice_lib import PiJuice
 from datetime import datetime 
+import plotly.graph_objects as go
 
 # ... (previous code)
 
 app = Flask(__name__)
 recording = False  # Flag to control recording
+
+# dash wrapper
+app = Flask(__name__)
+dash_app = Dash(__name__, server=app, url_base_pathname='/dash/')
+dash_app.layout = html.Div([
+    dcc.Graph(id='temp-plot'),
+    dcc.Interval(
+            id='interval-component',
+            interval=1*1000,  # in milliseconds
+            n_intervals=0
+    )
+])
 
 # I2C setup
 bus = smbus.SMBus(1)
@@ -19,10 +33,75 @@ temp_adc = tempADC(bus, n_channels=5)
 pijuice = PiJuice(bus)
 
 # data buffer for visualization 
-temp_buffer0 = []
+WLEN = 100
+time_buffer = [0] * WLEN
+temp_buffer0 = [0] * WLEN
+temp_buffer1 = [0] * WLEN
+temp_buffer2 = [0] * WLEN
+temp_buffer3 = [0] * WLEN
+temp_buffer4 = [0] * WLEN
+pressure_buffer = [0] * WLEN
 
 # CSV file setup
 downloads_directory = "logdata"
+
+# Dash callback to update graph
+@dash_app.callback(
+    Output('temp-plot', 'figure'),
+    [Input('interval-component', 'n_intervals')]
+)
+def update_graph(n_intervals):
+    # Use the global lists to plot
+    global time_buffer, temp_buffer
+    
+    # Create Plotly figure without Pandas
+    fig = {
+        'data': [
+            go.Scatter(
+                x=time_buffer,
+                y=temp_buffer0,
+                mode='lines',
+                name='Temperature Ch 1'
+            ),
+            go.Scatter(
+                x=time_buffer,
+                y=temp_buffer1,
+                mode='lines',
+                name='Temperature Ch 2'
+            ),
+            go.Scatter(
+                x=time_buffer,
+                y=temp_buffer2,
+                mode='lines',
+                name='Temperature Ch 3'
+            ),            
+            go.Scatter(
+                x=time_buffer,
+                y=temp_buffer3,
+                mode='lines',
+                name='Temperature Ch 4'
+            ),            
+            go.Scatter(
+                x=time_buffer,
+                y=temp_buffer4,
+                mode='lines',
+                name='Temperature Ch 5'
+            ),            
+            # go.Scatter(
+            #     x=time_buffer,
+            #     y=pressure_buffer,
+            #     mode='lines',
+            #     name='Pressure'
+            # )
+        ],
+        'layout': go.Layout(
+            title='Temperature Over Time',
+            xaxis=dict(title='Time'),
+            yaxis=dict(title='Temperature °C'),
+            legend=dict(x=0, y=1, traceorder='normal')
+        )
+    }
+    return fig
 
 def get_pi_status():
     pi_temp = os.popen("vcgencmd measure_temp").readline()
@@ -101,12 +180,22 @@ def download_file(filename):
 def record_data():
     global recording
     while True:
+        now = datetime.now()
+        timestamp = now.strftime('%H:%M:%S.%f')[:-3]
+        temps = temp_adc.read_all_channels()
+        temp_buffer0.append(temps[0])
+        time_buffer.append(timestamp)
+        temp_buffer0.pop(0)
+        time_buffer.pop(0)
+        temp_buffer1.append(temps[1])
+        temp_buffer1.pop(0)
+        temp_buffer2.append(temps[2])
+        temp_buffer2.pop(0)        
+        temp_buffer3.append(temps[3])
+        temp_buffer3.pop(0)       
+        temp_buffer4.append(temps[4])
+        temp_buffer4.pop(0)
         if recording:
-            now = datetime.now()
-            timestamp = now.strftime('%H:%M:%S.%f')[:-3]
-            # Replace the following line with your I2C reading function
-            temps = temp_adc.read_all_channels()
-            
             with open(csv_filename, "a", newline="") as csvfile:
                 csv_writer = csv.writer(csvfile)
                 csv_writer.writerow([timestamp] + temps)
@@ -130,6 +219,5 @@ if __name__ == "__main__":
     record_thread = Thread(target=record_data)
     record_thread.start()
 
-    app.debug = False
+    app.debug = True
     app.run(host="0.0.0.0", port=70)
-
