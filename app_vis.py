@@ -9,8 +9,7 @@ from rtd_lib import tempADC
 from pijuice_lib import PiJuice
 from datetime import datetime 
 import plotly.graph_objects as go
-
-# ... (previous code)
+import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 recording = False  # Flag to control recording
@@ -33,7 +32,8 @@ temp_adc = tempADC(bus, n_channels=5)
 pijuice = PiJuice(bus)
 
 # data buffer for visualization 
-WLEN = 100
+DATA_RATE = 2   # Hz
+WLEN = int(DATA_RATE * 25)  # 25 seconds of data
 time_buffer = [0] * WLEN
 temp_buffer0 = [0] * WLEN
 temp_buffer1 = [0] * WLEN
@@ -96,9 +96,10 @@ def update_graph(n_intervals):
         ],
         'layout': go.Layout(
             title='Temperature Over Time',
-            xaxis=dict(title='Time'),
-            yaxis=dict(title='Temperature °C'),
-            legend=dict(x=0, y=1, traceorder='normal')
+            xaxis=dict(title='Time (s)'),
+            yaxis=dict(title='Temperature (°C)'),
+            legend=dict(x=0, y=1, traceorder='normal'),
+            font=dict(family='Helvetica, sans-serif', size=14)
         )
     }
     return fig
@@ -169,7 +170,6 @@ def status():
         "battery_power": battery_power,
         "battery_faults": battery_faults
         }
-    # print(dic)
     return jsonify(dic)
 
 @app.route("/download/<filename>")
@@ -179,12 +179,14 @@ def download_file(filename):
 
 def record_data():
     global recording
+    tt = 0
     while True:
         now = datetime.now()
         timestamp = now.strftime('%H:%M:%S.%f')[:-3]
         temps = temp_adc.read_all_channels()
         temp_buffer0.append(temps[0])
-        time_buffer.append(timestamp)
+        time_buffer.append(tt)
+        tt += 1. /  DATA_RATE
         temp_buffer0.pop(0)
         time_buffer.pop(0)
         temp_buffer1.append(temps[1])
@@ -199,7 +201,7 @@ def record_data():
             with open(csv_filename, "a", newline="") as csvfile:
                 csv_writer = csv.writer(csvfile)
                 csv_writer.writerow([timestamp] + temps)
-        time.sleep(0.2)  # Sleep for 200ms to achieve ~5Hz
+        time.sleep(1. / DATA_RATE)  # Sleep 
 
 @app.route("/start_stop_recording", methods=["POST"])
 def start_stop_recording():
@@ -207,17 +209,61 @@ def start_stop_recording():
     global csv_filename
     if recording:
         recording = False
+        plot_recorded_data()
     else:
         recording = True
         csv_filename = f"{downloads_directory}/{time.strftime('%Y-%m-%d_%H-%M-%S')}.csv"
         with open(csv_filename, "w", newline="") as csvfile:
             csv_writer = csv.writer(csvfile)
-            csv_writer.writerow(["Time", "Temperature Ch0","Temperature Ch1","Temperature Ch2","Temperature Ch3","Temperature Ch4", "Pressure Data"])  # Add appropriate headers
+            csv_writer.writerow(["Time", "Temperature Ch0","Temperature Ch1","Temperature Ch2",
+                                 "Temperature Ch3","Temperature Ch4","Pressure Data"])  # Add appropriate headers
     return jsonify({"recording": recording})
+
+def plot_recorded_data():
+    # read the csv file
+    tt = []
+    temp_data0 = []
+    temp_data1 = []
+    temp_data2 = []
+    temp_data3 = []
+    temp_data4 = []
+    pressure_data = []
+
+    with open(csv_filename, 'r') as file:
+        reader = csv.reader(file)
+        next(reader)    # skip header 
+        for row in reader:
+            tt.append(float(row[0])) 
+            temp_data0.append(float(row[1])) 
+            temp_data1.append(float(row[2])) 
+            temp_data2.append(float(row[3])) 
+            temp_data3.append(float(row[4])) 
+            temp_data4.append(float(row[5])) 
+            pressure_data.append(float(row[6])) 
+
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel('time (s)')
+    ax1.set_ylabel('Temperature ()')
+    ax1.plot(tt, temp_data0, label='Channel 1')
+    ax1.plot(tt, temp_data1, label='Channel 2')
+    ax1.plot(tt, temp_data2, label='Channel 3')
+    ax1.plot(tt, temp_data3, label='Channel 4')
+    ax1.plot(tt, temp_data4, label='Channel 5')
+    ax1.legend()
+    # ax1.tick_params(axis='y', labelcolor=color)
+
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+    ax2.set_ylabel('Pressure (unit)') 
+    ax2.plot(tt, pressure_data, label='Pressure')
+    # ax2.tick_params(axis='y', labelcolor=color)
+
+    fig.tight_layout() 
+    fig.savefig(csv_filename[:-4])
 
 if __name__ == "__main__":
     record_thread = Thread(target=record_data)
     record_thread.start()
 
-    app.debug = True
+    app.debug = False
     app.run(host="0.0.0.0", port=70)

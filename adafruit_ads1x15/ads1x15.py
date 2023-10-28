@@ -15,24 +15,23 @@ __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15.git"
 
 import time
-
-from adafruit_bus_device.i2c_device import I2CDevice
-from micropython import const
+# from adafruit_bus_device.i2c_device import I2CDevice
+# from micropython import const
 
 try:
     from typing import Dict, List, Optional
 
-    from busio import I2C
-    from microcontroller import Pin
+    # from busio import I2C
+    # from microcontroller import Pin
 except ImportError:
     pass
 
-_ADS1X15_DEFAULT_ADDRESS = const(0x48)
-_ADS1X15_POINTER_CONVERSION = const(0x00)
-_ADS1X15_POINTER_CONFIG = const(0x01)
-_ADS1X15_CONFIG_OS_SINGLE = const(0x8000)
-_ADS1X15_CONFIG_MUX_OFFSET = const(12)
-_ADS1X15_CONFIG_COMP_QUE_DISABLE = const(0x0003)
+_ADS1X15_DEFAULT_ADDRESS = 0x48
+_ADS1X15_POINTER_CONVERSION = 0x00
+_ADS1X15_POINTER_CONFIG = 0x01
+_ADS1X15_CONFIG_OS_SINGLE = 0x8000
+_ADS1X15_CONFIG_MUX_OFFSET = 12
+_ADS1X15_CONFIG_COMP_QUE_DISABLE = 0x0003
 _ADS1X15_CONFIG_GAIN = {
     2 / 3: 0x0000,
     1: 0x0200,
@@ -58,7 +57,7 @@ class Mode:
 class ADS1x15:
     """Base functionality for ADS1x15 analog to digital converters.
 
-    :param ~busio.I2C i2c: The I2C bus the device is connected to.
+    :param SMBus i2c: The I2C bus the device is connected to.
     :param float gain: The ADC gain.
     :param int data_rate: The data rate for ADC conversion in samples per second.
                           Default value depends on the device.
@@ -68,7 +67,7 @@ class ADS1x15:
 
     def __init__(
         self,
-        i2c: I2C,
+        i2c_bus,
         gain: float = 1,
         data_rate: Optional[int] = None,
         mode: int = Mode.SINGLE,
@@ -80,7 +79,9 @@ class ADS1x15:
         self.gain = gain
         self.data_rate = self._data_rate_default() if data_rate is None else data_rate
         self.mode = mode
-        self.i2c_device = I2CDevice(i2c, address)
+        # self.i2c_device = I2CDevice(i2c, address)
+        self.addr = address
+        self.i2c_device = i2c_bus
 
     @property
     def bits(self) -> int:
@@ -139,7 +140,7 @@ class ADS1x15:
             raise ValueError("Unsupported mode.")
         self._mode = mode
 
-    def read(self, pin: Pin, is_differential: bool = False) -> int:
+    def read(self, pin, is_differential: bool = False) -> int:
         """I2C Interface for ADS1x15-based ADCs reads.
 
         :param ~microcontroller.Pin pin: individual or differential pin.
@@ -160,7 +161,7 @@ class ADS1x15:
         """
         raise NotImplementedError("Subclass must implement _conversion_value function!")
 
-    def _read(self, pin: Pin) -> int:
+    def _read(self, pin) -> int:
         """Perform an ADC read. Returns the signed integer result of the read."""
         # Immediately return conversion register result if in CONTINUOUS mode
         # and pin has not changed
@@ -216,16 +217,24 @@ class ADS1x15:
         self.buf[0] = reg
         self.buf[1] = (value >> 8) & 0xFF
         self.buf[2] = value & 0xFF
-        with self.i2c_device as i2c:
-            i2c.write(self.buf)
+        # with self.i2c_device as i2c:
+        #     i2c.write(self.buf)
+        data = [(value >> 8) & 0xFF, value & 0xFF]
+        self.i2c_device.write_i2c_block_data(self.addr, reg, data)
 
     def _read_register(self, reg: int, fast: bool = False) -> int:
         """Read 16 bit register value. If fast is True, the pointer register
         is not updated.
         """
-        with self.i2c_device as i2c:
-            if fast:
-                i2c.readinto(self.buf, end=2)
-            else:
-                i2c.write_then_readinto(bytearray([reg]), self.buf, in_end=2)
-        return self.buf[0] << 8 | self.buf[1]
+        # with self.i2c_device as i2c:
+        #     if fast:
+        #         i2c.readinto(self.buf, end=2)
+        #     else:
+        #         i2c.write_then_readinto(bytearray([reg]), self.buf, in_end=2)
+        # return self.buf[0] << 8 | self.buf[1]
+
+        d = self.i2c_device.read_i2c_block_data(self.addr, reg, 2)
+        # convert to one 16 bit value
+        val = d[0] << 8 | d[1]
+        return val
+    

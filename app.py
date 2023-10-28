@@ -8,8 +8,6 @@ from rtd_lib import tempADC
 from pijuice_lib import PiJuice
 from datetime import datetime 
 
-# ... (previous code)
-
 app = Flask(__name__)
 recording = False  # Flag to control recording
 
@@ -17,9 +15,6 @@ recording = False  # Flag to control recording
 bus = smbus.SMBus(1)
 temp_adc = tempADC(bus, n_channels=5)
 pijuice = PiJuice(bus)
-
-# data buffer for visualization 
-temp_buffer0 = []
 
 # CSV file setup
 downloads_directory = "logdata"

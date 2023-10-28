@@ -13,7 +13,7 @@ differential ADC readings.
 
 try:
     from typing import Optional
-    from .ads1x15 import ADS1x15
+    from ads1x15 import ADS1x15
 except ImportError:
     pass
 
