@@ -14,17 +14,17 @@ from smbus import SMBus
 i2c = SMBus(1)    # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)
 
 # Create the ADC object using the I2C bus
-ads = ADS.ADS1115(i2c)
+ads = ADS.ADS1115(i2c, gain=2/3)
 ads.mode = Mode.CONTINUOUS
 
 # you can specify an I2C adress instead of the default 0x48
 # ads = ADS.ADS1115(i2c, address=0x49)
 
 # Create single-ended input on channel 0
-chan = AnalogIn(ads, ADS.P0)
+# chan = AnalogIn(ads, ADS.P0)
 
 # Create differential input between channel 0 and 1
-# chan = AnalogIn(ads, ADS.P0, ADS.P1)
+chan = AnalogIn(ads, ADS.P2, ADS.P3)
 
 print("{:>5}\t{:>5}".format("raw", "v"))
 

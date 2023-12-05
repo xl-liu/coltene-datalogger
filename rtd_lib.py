@@ -3,7 +3,6 @@ python script to read temperature via I2C from the Sequent raspberry pi card
 based on https://github.com/SequentMicrosystems/rtd-rpi/tree/master/python
 '''
 
-import smbus
 import struct
 
 # bus = smbus.SMBus(1)    # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)

@@ -4,15 +4,31 @@ import time
 import csv
 import os
 from threading import Thread
-import smbus
+from smbus import SMBus
 from rtd_lib import tempADC
 from pijuice_lib import PiJuice
 from datetime import datetime 
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
+from plotly.subplots import make_subplots
+# import plotly.express as px
+import sys
+sys.path.insert(0, 'adafruit_ads1x15')
+import adafruit_ads1x15.ads1115 as ADS
+from adafruit_ads1x15.analog_in import AnalogIn
+from adafruit_ads1x15.ads1x15 import Mode
 
 app = Flask(__name__)
 recording = False  # Flag to control recording
+
+# I2C setup
+bus = SMBus(1)  # I2C bus
+temp_adc = tempADC(bus, n_channels=5)   # temperature ADC hat 
+pijuice = PiJuice(bus)  # pijuice board
+pres_ads = ADS.ADS1115(bus, gain=2/3)   # adc for pressure sensor
+pres_ads.mode = Mode.CONTINUOUS
+pres_chan = AnalogIn(pres_ads, ADS.P0)
+global io2_status
+io2_status = 1
 
 # dash wrapper
 app = Flask(__name__)
@@ -26,11 +42,6 @@ dash_app.layout = html.Div([
     )
 ])
 
-# I2C setup
-bus = smbus.SMBus(1)
-temp_adc = tempADC(bus, n_channels=5)
-pijuice = PiJuice(bus)
-
 # data buffer for visualization 
 DATA_RATE = 2   # Hz
 WLEN = int(DATA_RATE * 25)  # 25 seconds of data
@@ -40,68 +51,64 @@ temp_buffer1 = [0] * WLEN
 temp_buffer2 = [0] * WLEN
 temp_buffer3 = [0] * WLEN
 temp_buffer4 = [0] * WLEN
-pressure_buffer = [0] * WLEN
+pres_buffer = [0] * WLEN
+
+# offset for temp sensors
+TEMP_OFFSET = [0.64,  0.138,  0.17, -0.853, -1.188]
 
 # CSV file setup
 downloads_directory = "logdata"
 
-# Dash callback to update graph
+# Dash callback to plot live data 
 @dash_app.callback(
     Output('temp-plot', 'figure'),
     [Input('interval-component', 'n_intervals')]
 )
 def update_graph(n_intervals):
     # Use the global lists to plot
-    global time_buffer, temp_buffer
+    global time_buffer, temp_buffer0, temp_buffer1, temp_buffer2
+    global temp_buffer3, temp_buffer4, pres_buffer
     
     # Create Plotly figure without Pandas
-    fig = {
-        'data': [
-            go.Scatter(
-                x=time_buffer,
-                y=temp_buffer0,
-                mode='lines',
-                name='Temperature Ch 1'
-            ),
-            go.Scatter(
-                x=time_buffer,
-                y=temp_buffer1,
-                mode='lines',
-                name='Temperature Ch 2'
-            ),
-            go.Scatter(
-                x=time_buffer,
-                y=temp_buffer2,
-                mode='lines',
-                name='Temperature Ch 3'
-            ),            
-            go.Scatter(
-                x=time_buffer,
-                y=temp_buffer3,
-                mode='lines',
-                name='Temperature Ch 4'
-            ),            
-            go.Scatter(
-                x=time_buffer,
-                y=temp_buffer4,
-                mode='lines',
-                name='Temperature Ch 5'
-            ),            
-            # go.Scatter(
-            #     x=time_buffer,
-            #     y=pressure_buffer,
-            #     mode='lines',
-            #     name='Pressure'
-            # )
-        ],
-        'layout': go.Layout(
-            title='Temperature Over Time',
-            xaxis=dict(title='Time (s)'),
-            yaxis=dict(title='Temperature (°C)'),
-            legend=dict(x=0, y=1, traceorder='normal'),
-            font=dict(family='Helvetica, sans-serif', size=14)
-        )
-    }
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=time_buffer,
+                            y=temp_buffer0,
+                            mode='lines',
+                            name='Temperature Ch 1'))
+    fig.add_trace(go.Scatter(x=time_buffer,
+                            y=temp_buffer1,
+                            mode='lines',
+                            name='Temperature Ch 2'))
+    fig.add_trace(go.Scatter(x=time_buffer,
+                            y=temp_buffer2,
+                            mode='lines',
+                            name='Temperature Ch 3'))
+    fig.add_trace(go.Scatter(x=time_buffer,
+                            y=temp_buffer3,
+                            mode='lines',
+                            name='Temperature Ch 4'))
+    fig.add_trace(go.Scatter(x=time_buffer,
+                            y=temp_buffer4,
+                            mode='lines',
+                            name='Temperature Ch 5'))
+    fig.update_layout(yaxis=dict(title='Temperature (°C)'))
+
+    # plot the pressure
+    fig.add_trace(go.Scatter(x=time_buffer, 
+                             y=pres_buffer, 
+                             mode='lines', 
+                             name='Pressure', 
+                             yaxis='y2'))
+    fig.update_layout(yaxis2=dict(title='Pressure (mbar)', 
+                                  overlaying='y', 
+                                  side='right'))
+    fig.update_layout(
+        title='Live Data',
+        xaxis=dict(title='Time (s)'),
+        legend=dict(x=0, y=1, traceorder='normal'),
+        font=dict(family='Helvetica, sans-serif', size=12)
+    )
+
     return fig
 
 def get_pi_status():
@@ -113,6 +120,7 @@ def get_pi_status():
     return pi_temp, pi_time, pi_space
 
 def get_battery_status():
+    global io2_status
 
     temp_info = pijuice.status.GetBatteryTemperature()
     if temp_info['error'] == 'NO_ERROR':
@@ -136,10 +144,15 @@ def get_battery_status():
     else:
         battery_faults = 'N/A'
 
-    return battery_temp, battery_power, battery_faults
+    # check the IO2 pin 
+    io2_info = pijuice.status.GetIoDigitalInput(2)
+    if io2_info['error'] == 'NO_ERROR':
+        io2_status = io2_info['data']
+    return battery_temp, battery_power, battery_faults, io2_status
 
 def get_available_space():
     try:
+        # stat = os.statvfs('/')  # Replace with the mount point of /dev/root if different
         stat = os.statvfs('/')  # Replace with the mount point of /dev/root if different
         # Calculate available space
         available_space = stat.f_frsize * stat.f_bavail
@@ -160,7 +173,7 @@ def index():
 @app.route("/status")
 def status():
     temperature, timestamp, avail_space = get_pi_status()
-    battery_temp, battery_power, battery_faults = get_battery_status()
+    battery_temp, battery_power, battery_faults, io2 = get_battery_status()
     dic = { 
         "temperature": temperature,
         "timestamp": timestamp,
@@ -168,8 +181,15 @@ def status():
         "recording": recording,  # Pass recording status to the client
         "battery_temp": battery_temp,
         "battery_power": battery_power,
-        "battery_faults": battery_faults
+        "battery_faults": battery_faults,
+        "system_switch": io2_status
         }
+    
+    # turn off the pi if the system switch is off
+    if not io2_status:
+        pijuice.power.SetSystemPowerSwitch(0)
+        pijuice.power.SetPowerOff(10)
+        os.system("sudo shutdown -h now")
     return jsonify(dic)
 
 @app.route("/download/<filename>")
@@ -181,26 +201,38 @@ def record_data():
     global recording
     tt = 0
     while True:
+        # timestamp used for logging
         now = datetime.now()
         timestamp = now.strftime('%H:%M:%S.%f')[:-3]
-        temps = temp_adc.read_all_channels()
-        temp_buffer0.append(temps[0])
+
+        # timestamp used for plotting
         time_buffer.append(tt)
         tt += 1. /  DATA_RATE
-        temp_buffer0.pop(0)
         time_buffer.pop(0)
-        temp_buffer1.append(temps[1])
+
+        # read the temperature sensor
+        temps = temp_adc.read_all_channels()
+        temp_buffer0.append(temps[0] + TEMP_OFFSET[0])
+        temp_buffer0.pop(0)
+        temp_buffer1.append(temps[1] + TEMP_OFFSET[1])
         temp_buffer1.pop(0)
-        temp_buffer2.append(temps[2])
+        temp_buffer2.append(temps[2] + TEMP_OFFSET[2])
         temp_buffer2.pop(0)        
-        temp_buffer3.append(temps[3])
+        temp_buffer3.append(temps[3] + TEMP_OFFSET[3])
         temp_buffer3.pop(0)       
-        temp_buffer4.append(temps[4])
+        temp_buffer4.append(temps[4] + TEMP_OFFSET[4])
         temp_buffer4.pop(0)
+
+        # read the pressure sensor
+        pressure = pres_chan.pressure
+        pres_buffer.append(pressure)
+        pres_buffer.pop(0)
+
+        # save the data to csv file
         if recording:
             with open(csv_filename, "a", newline="") as csvfile:
                 csv_writer = csv.writer(csvfile)
-                csv_writer.writerow([timestamp] + temps)
+                csv_writer.writerow([timestamp] + temps + [pressure])  # 0 for pressure sensor for now
         time.sleep(1. / DATA_RATE)  # Sleep 
 
 @app.route("/start_stop_recording", methods=["POST"])
@@ -220,7 +252,6 @@ def start_stop_recording():
     return jsonify({"recording": recording})
 
 def plot_recorded_data():
-    # read the csv file
     tt = []
     temp_data0 = []
     temp_data1 = []
@@ -229,37 +260,68 @@ def plot_recorded_data():
     temp_data4 = []
     pressure_data = []
 
+    # read the csv file
     with open(csv_filename, 'r') as file:
         reader = csv.reader(file)
         next(reader)    # skip header 
         for row in reader:
-            tt.append(float(row[0])) 
+            tt.append(row[0])
             temp_data0.append(float(row[1])) 
             temp_data1.append(float(row[2])) 
             temp_data2.append(float(row[3])) 
             temp_data3.append(float(row[4])) 
             temp_data4.append(float(row[5])) 
-            pressure_data.append(float(row[6])) 
+            # pressure_data.append(float(row[6])) 
+            pressure_data.append(0) 
 
-    fig, ax1 = plt.subplots()
-    ax1.set_xlabel('time (s)')
-    ax1.set_ylabel('Temperature ()')
-    ax1.plot(tt, temp_data0, label='Channel 1')
-    ax1.plot(tt, temp_data1, label='Channel 2')
-    ax1.plot(tt, temp_data2, label='Channel 3')
-    ax1.plot(tt, temp_data3, label='Channel 4')
-    ax1.plot(tt, temp_data4, label='Channel 5')
-    ax1.legend()
-    # ax1.tick_params(axis='y', labelcolor=color)
+    # Create figure with secondary y-axis
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    # Add traces
+    fig.add_trace(
+        go.Scatter(x=tt, y=temp_data0, name="Channel 1"),
+        secondary_y=False,
+    )
+    fig.add_trace(
+        go.Scatter(x=tt, y=temp_data1, name="Channel 2"),
+        secondary_y=False,
+    )    
+    fig.add_trace(
+        go.Scatter(x=tt, y=temp_data2, name="Channel 3"),
+        secondary_y=False,
+    )
+    fig.add_trace(
+        go.Scatter(x=tt, y=temp_data3, name="Channel 4"),
+        secondary_y=False,
+    )    
+    fig.add_trace(
+        go.Scatter(x=tt, y=temp_data4, name="Channel 5"),
+        secondary_y=False,
+    )   
+    fig.add_trace(
+        go.Scatter(x=tt, y=pressure_data, name="Pressure"),
+        secondary_y=True,
+    )
 
-    ax2.set_ylabel('Pressure (unit)') 
-    ax2.plot(tt, pressure_data, label='Pressure')
-    # ax2.tick_params(axis='y', labelcolor=color)
+    # Add figure title
+    fig.update_layout(
+        title_text="Logdata"
+    )
 
-    fig.tight_layout() 
-    fig.savefig(csv_filename[:-4])
+    # Set x-axis title
+    fig.update_xaxes(title_text="Time (s)")
+    fig.update_layout(
+        xaxis=dict(
+            tickmode='array',
+            tickvals=tt[::4]
+        )
+    )
+    # Set y-axes titles
+    fig.update_yaxes(title_text="Temperature (°C)", secondary_y=False)
+    fig.update_yaxes(title_text="Pressure (mbar)", secondary_y=True)
+
+    # save the figure
+    # fig.write_html(csv_filename[:-4] + ".html")
 
 if __name__ == "__main__":
     record_thread = Thread(target=record_data)

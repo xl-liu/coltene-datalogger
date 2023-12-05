@@ -3,14 +3,28 @@ from rtd_lib import tempADC
 from pijuice_lib import PiJuice
 import os 
 import time 
-import smbus
-bus = smbus.SMBus(1)    # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)
+from smbus import SMBus
+
+import sys
+sys.path.insert(0, 'adafruit_ads1x15')
+
+import adafruit_ads1x15.ads1115 as ADS
+from adafruit_ads1x15.analog_in import AnalogIn
+from adafruit_ads1x15.ads1x15 import Mode
+
+bus = SMBus(1)    # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)
 
 temp_adc = tempADC(bus)
 # ina219 = INA219(bus)
 pijuice = PiJuice(bus)
 
+pres_ads = ADS.ADS1115(bus, gain=2/3)
+pres_ads.mode = Mode.CONTINUOUS
+pres_chan = AnalogIn(pres_ads, ADS.P0)
+
 # get pressure sensor reading
+print('pressure')
+print(f'{pres_chan.pressure} mbar')
 
 # get temperature sensor reading
 print('temperature')
@@ -49,6 +63,8 @@ if __name__ == "__main__":
     while True:
         temp = temp_adc.read_all_channels()
         for i in range(temp_adc.n_channels):
-            print(f'channel {i+1}: {temp[i]}')
+            print(f'temperature channel {i+1}: {temp[i]}')
+        print(f'pressure: {pres_chan.pressure} mbar')
+        print(f'ADC channel 0 voltage: {pres_chan.voltage} V')
         time.sleep(1)
         

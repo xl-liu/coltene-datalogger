@@ -12,10 +12,11 @@ sudo raspi-config nonint do_i2c 0
 # install packages
 echo "Installing required packages..."
 sudo apt install -y vim i2c-tools git python3-pip
+sudo apt-get install pijuice-base
 
 # Install pythan libraries 
 sudo mv /usr/lib/python3.11/EXTERNALLY-MANAGED /usr/lib/python3.11/EXTERNALLY-MANAGED/EXTERNALLY-MANAGED.old
-sudo pip3 install smbus2 dash numpy flask-bookstrap pandas # flask in included in dash
+sudo pip3 install smbus dash numpy  # flask in included in dash
 
 # clone the repo
 git clone https://github.com/xl-liu/coltene-datalogger.git

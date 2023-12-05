@@ -59,3 +59,10 @@ class AnalogIn:
         """Returns the voltage from the ADC pin as a floating point value."""
         volts = self.value * _ADS1X15_PGA_RANGE[self._ads.gain] / 32767
         return volts
+
+    @property
+    def pressure(self) -> float:
+        """ returns the pressure reading (range: 0-4bar)"""
+        pressure = self.voltage / 5 * 4000 
+        return pressure 
+    

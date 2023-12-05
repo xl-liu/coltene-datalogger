@@ -9,8 +9,6 @@ import sys
 import threading
 import time
 
-from smbus import SMBus
-
 pijuice_hard_functions = ['HARD_FUNC_POWER_ON', 'HARD_FUNC_POWER_OFF', 'HARD_FUNC_RESET']
 pijuice_sys_functions = ['SYS_FUNC_HALT', 'SYS_FUNC_HALT_POW_OFF', 'SYS_FUNC_SYS_OFF_HALT', 'SYS_FUNC_REBOOT']
 pijuice_user_functions = ['USER_EVENT'] + ['USER_FUNC' + str(i+1) for i in range(0, 15)]

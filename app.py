@@ -3,7 +3,7 @@ import time
 import csv
 import os
 from threading import Thread
-import smbus
+from smbus import SMBus
 from rtd_lib import tempADC
 from pijuice_lib import PiJuice
 from datetime import datetime 
@@ -12,7 +12,7 @@ app = Flask(__name__)
 recording = False  # Flag to control recording
 
 # I2C setup
-bus = smbus.SMBus(1)
+bus = SMBus(1)
 temp_adc = tempADC(bus, n_channels=5)
 pijuice = PiJuice(bus)
 

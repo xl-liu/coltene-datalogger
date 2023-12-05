@@ -25,8 +25,8 @@ def plot_logdata(filename):
             temp_data2.append(float(row[3])) 
             temp_data3.append(float(row[4])) 
             temp_data4.append(float(row[5])) 
-            # pressure_data.append(float(row[6])) 
-            pressure_data.append(0) 
+            pressure_data.append(float(row[6])) 
+            # pressure_data.append(0) 
 
     # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -64,10 +64,11 @@ def plot_logdata(filename):
 
     # Set x-axis title
     fig.update_xaxes(title_text="Time (s)")
+    step_size = int(len(tt) / 20)
     fig.update_layout(
         xaxis=dict(
             tickmode='array',
-            tickvals=tt[::4]
+            tickvals=tt[::step_size]
         )
     )
     # Set y-axes titles
@@ -82,5 +83,6 @@ if __name__ == "__main__":
     list_of_files = glob.glob('logdata/*.csv') 
     latest_file = max(list_of_files, key=os.path.getctime)
     # print(latest_file)
+    latest_file = 'logdata/2023-11-03_01-47-09.csv'
     plot_logdata(latest_file)
     
