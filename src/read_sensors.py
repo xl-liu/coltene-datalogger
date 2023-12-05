@@ -1,6 +1,6 @@
-from ups_lib import INA219
-from rtd_lib import tempADC
-from pijuice_lib import PiJuice
+# from i2c_lib.ups_lib import INA219
+from i2c_lib.rtd_lib import tempADC
+from i2c_lib.pijuice_lib import PiJuice
 import os 
 import time 
 from smbus import SMBus
@@ -8,9 +8,9 @@ from smbus import SMBus
 import sys
 sys.path.insert(0, 'adafruit_ads1x15')
 
-import adafruit_ads1x15.ads1115 as ADS
-from adafruit_ads1x15.analog_in import AnalogIn
-from adafruit_ads1x15.ads1x15 import Mode
+import i2c_lib.adafruit_ads1x15.ads1115 as ADS
+from i2c_lib.adafruit_ads1x15.analog_in import AnalogIn
+from i2c_lib.adafruit_ads1x15.ads1x15 import Mode
 
 bus = SMBus(1)    # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)
 

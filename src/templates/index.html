@@ -7,13 +7,13 @@
 </head>
 <body>
     <div class="titlebox">
-        <h1> COLTENEN Datalogger </h1>
+        <h1> COLTENE Datalogger </h1>
     </div>
     <div class="box">
         <div class="column left">
             <h3> Recording: <span id="recording-status"></span> </h3>
         </div>
-            <div class="column right">
+        <div class="column right">
             <button id="recording-button">Start Recording</button>
         </div>
     </div>
@@ -28,6 +28,8 @@
                 Temperature: <span id="battery_temp"></span>&deg;C
                 <br>
                 Fault: <span id="battery_faults"></span>
+                <br>
+                System Switch: <span id="system_switch"></span>
             </p>
         </div>
     </div>
@@ -58,7 +60,9 @@
             </ul>
         </div>
     </div>
-
+    <div class="column right">
+        <iframe src="/dash/" width="800" height="500" frameBorder="0"></iframe>
+    </div>
     <script>
         let recording = false; // Get the recording state from the server
 
@@ -68,7 +72,8 @@
         const storageDisplay = document.getElementById("available_space");
         const batteryTempDisplay = document.getElementById("battery_temp");
         const batteryPowerDisplay = document.getElementById("battery_power");
-        const batterFaultsDisplay = document.getElementById("battery_faults");
+        const batteryFaultsDisplay = document.getElementById("battery_faults");
+        const systemSwitchDisplay = document.getElementById("system_switch");
 
         fetch("/status")
             .then(response => response.json())
@@ -109,7 +114,8 @@
                     storageDisplay.innerText = data.available_space;
                     batteryTempDisplay.innerText = data.battery_temp;
                     batteryPowerDisplay.innerText = data.battery_power;
-                    batterFaultsDisplay.innerText = data.battery_faults;
+                    batteryFaultsDisplay.innerText = data.battery_faults;
+                    systemSwitchDisplay.innerText = data.system_switch;
                     document.getElementById("timestamp").innerText = data.timestamp;
                 });
         }
@@ -118,6 +124,5 @@
         updateStatus();
         setInterval(updateStatus, 2000);
     </script>
-    <iframe src="/dash/" width="800" height="600"></iframe>
 </body>
 </html>
