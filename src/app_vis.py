@@ -101,7 +101,8 @@ def update_graph(n_intervals):
                              yaxis='y2'))
     fig.update_layout(yaxis2=dict(title='Pressure (mbar)', 
                                   overlaying='y', 
-                                  side='right'))
+                                  side='right', 
+                                  range=[0,4]))
     fig.update_layout(
         title='Live Data',
         xaxis=dict(title='Time (s)'),

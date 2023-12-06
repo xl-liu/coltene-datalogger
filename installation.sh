@@ -18,11 +18,8 @@ sudo apt-get install pijuice-base
 sudo mv /usr/lib/python3.11/EXTERNALLY-MANAGED /usr/lib/python3.11/EXTERNALLY-MANAGED/EXTERNALLY-MANAGED.old
 sudo pip3 install smbus dash numpy  # flask in included in dash
 
-# clone the repo
-git clone https://github.com/xl-liu/coltene-datalogger.git
-
 # move the service file
-echo "Creating service file for datalogger"
+echo "Creating service for datalogger"
 sudo mv coltene-datalogger/datalogger.service /etc/systemd/system/
 sudo systemctl enable datalogger.service 
 sudo systemctl start datalogger.service

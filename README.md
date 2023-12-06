@@ -26,6 +26,10 @@ Trouleshooting tips </br>
    - after connecting to the pi's hotspot, you can SSH into the pi via `SSH pi@10.42.0.1`
    - to list the I2C connections, run `i2cdetect -y 1`, you should see `14, 68, ...`
    - to list the existing wlan interfaces, run `nmcli con show`
+   - to turn off the hotspot and connect to a new wifi, </br>
+      run `sudo nmcli device disconnect wlan0` </br>
+      then `sudo nmcli device up wlan0` </br>
+      and `sudo nmcli --ask dev wifi connect <new_ssid>`
 
 ## Hardware ## 
 Componenets:
@@ -41,4 +45,8 @@ Componenets:
         - M12 connector set 
         - prototype board
 
-Diagram
+Circuit diagram for the pressure sensor ADC:
+![pressure_sensor_adc](media/pressure_adc.png)
+
+Circuit digram for the power connector:
+![power_switch](media/power_circuit.png)
