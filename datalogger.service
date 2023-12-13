@@ -3,7 +3,7 @@ Description=Datalogger App
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python /home/pi/coltene-datalogger/app_vis.py
+ExecStart=/usr/bin/python /home/pi/coltene-datalogger/src/app_vis.py
 WorkingDirectory=/home/pi/coltene-datalogger/
 User=root
 Restart=always

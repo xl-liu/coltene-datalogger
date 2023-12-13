@@ -57,7 +57,7 @@ pres_buffer = [0] * WLEN
 TEMP_OFFSET = [0.64,  0.138,  0.17, -0.853, -1.188]
 
 # CSV file setup
-downloads_directory = "logdata"
+downloads_directory = "../logdata"
 
 # Dash callback to plot live data 
 @dash_app.callback(
@@ -322,7 +322,7 @@ def plot_recorded_data():
     fig.update_yaxes(title_text="Pressure (mbar)", secondary_y=True)
 
     # save the figure
-    # fig.write_html(csv_filename[:-4] + ".html")
+    fig.write_html(csv_filename[:-4] + ".html")
 
 if __name__ == "__main__":
     record_thread = Thread(target=record_data)

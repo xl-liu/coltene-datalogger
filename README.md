@@ -8,6 +8,10 @@
    
 2. Installation
    - boot up the Pi with the SD card </br>
+   - run these commands: 
+      - `sudo apt update`
+      - `sudo apt upgrade`
+      - `sudo apt install git`
    - clone the repo </br>
         `git clone https://github.com/xl-liu/coltene-datalogger.git` </br>
          `cd coltene-datalogger` </br>
@@ -27,8 +31,7 @@ Trouleshooting tips </br>
    - to list the I2C connections, run `i2cdetect -y 1`, you should see `14, 68, ...`
    - to list the existing wlan interfaces, run `nmcli con show`
    - to turn off the hotspot and connect to a new wifi, </br>
-      run `sudo nmcli device disconnect wlan0` </br>
-      then `sudo nmcli device up wlan0` </br>
+      run `sudo nmcli con down Hotspot` </br>
       and `sudo nmcli --ask dev wifi connect <new_ssid>`
 
 ## Hardware ## 
