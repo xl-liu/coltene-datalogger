@@ -16,6 +16,7 @@ sys.path.insert(0, 'adafruit_ads1x15')
 import i2c_lib.adafruit_ads1x15.ads1115 as ADS
 from i2c_lib.adafruit_ads1x15.analog_in import AnalogIn
 from i2c_lib.adafruit_ads1x15.ads1x15 import Mode
+import glob
 
 app = Flask(__name__)
 recording = False  # Flag to control recording
@@ -29,6 +30,14 @@ pres_ads.mode = Mode.CONTINUOUS
 pres_chan = AnalogIn(pres_ads, ADS.P0)
 global io2_flags
 io2_flags = 0
+
+# digital temp sensor setup
+# os.system('modprobe w1-gpio')
+# os.system('modprobe w1-therm')
+
+base_dir = '/sys/bus/w1/devices/'
+device_folder = glob.glob(base_dir + '28*')[0]
+device_file = device_folder + '/w1_slave'
 
 # dash wrapper
 app = Flask(__name__)
@@ -52,6 +61,7 @@ temp_buffer2 = [0] * WLEN
 temp_buffer3 = [0] * WLEN
 temp_buffer4 = [0] * WLEN
 pres_buffer = [0] * WLEN
+digi_temp_buffer  = [0] * WLEN
 
 # offset for temp sensors
 TEMP_OFFSET = [0.64,  0.138,  0.17, -0.853, -1.188]
@@ -67,7 +77,7 @@ downloads_directory = "/home/pi/coltene-datalogger/logdata"
 def update_graph(n_intervals):
     # Use the global lists to plot
     global time_buffer, temp_buffer0, temp_buffer1, temp_buffer2
-    global temp_buffer3, temp_buffer4, pres_buffer
+    global temp_buffer3, temp_buffer4, pres_buffer, digi_temp_buffer
     
     # Create Plotly figure without Pandas
     fig = go.Figure()
@@ -91,6 +101,10 @@ def update_graph(n_intervals):
                             y=temp_buffer4,
                             mode='lines',
                             name='Temperature Ch 5'))
+    fig.add_trace(go.Scatter(x=time_buffer,
+                            y=digi_temp_buffer,
+                            mode='lines',
+                            name='Temperature Digital'))
     fig.update_layout(yaxis=dict(title='Temperature (°C)'))
 
     # plot the pressure
@@ -120,6 +134,23 @@ def get_pi_status():
     pi_space = get_available_space()
     return pi_temp, pi_time, pi_space
 
+def read_digi_temp_raw():
+    with open(device_file, 'r') as f:
+        lines = f.readlines()
+    return lines
+
+def read_digi_temp():
+    lines = read_digi_temp_raw()
+    while lines[0].strip()[-3:] != 'YES':
+        # time.sleep(0.2)
+        lines = read_digi_temp_raw()
+    equals_pos = lines[1].find('t=')
+    if equals_pos != -1:
+        temp_string = lines[1][equals_pos+2:]
+        temp_c = float(temp_string) / 1000.0
+        # temp_f = temp_c * 9.0 / 5.0 + 32.0
+        return temp_c
+    
 def get_battery_status():
     temp_info = pijuice.status.GetBatteryTemperature()
     if temp_info['error'] == 'NO_ERROR':
@@ -176,6 +207,7 @@ def status():
     global io2_flags
     temperature, timestamp, avail_space = get_pi_status()
     battery_temp, battery_power, battery_faults, io2_status = get_battery_status()
+    digi_temp = read_digi_temp()
     dic = { 
         "temperature": temperature,
         "timestamp": timestamp,
@@ -184,7 +216,8 @@ def status():
         "battery_temp": battery_temp,
         "battery_power": battery_power,
         "battery_faults": battery_faults,
-        "system_switch": io2_status
+        "system_switch": io2_status,
+        "temperature_digital": digi_temp
         }
     
     # turn off the pi if the system switch is off
@@ -216,27 +249,38 @@ def record_data():
 
         # read the temperature sensor
         temps = temp_adc.read_all_channels()
-        temp_buffer0.append(temps[0] + TEMP_OFFSET[0])
+        # temp_buffer0.append(temps[0] + TEMP_OFFSET[0])
+        # temp_buffer1.append(temps[1] + TEMP_OFFSET[1])
+        # temp_buffer2.append(temps[2] + TEMP_OFFSET[2])
+        # temp_buffer3.append(temps[3] + TEMP_OFFSET[3])
+        # temp_buffer4.append(temps[4] + TEMP_OFFSET[4])
+        temp_buffer0.append(0.)
+        temp_buffer1.append(0.)
+        temp_buffer2.append(0.)
+        temp_buffer3.append(0.)
+        temp_buffer4.append(0.)
         temp_buffer0.pop(0)
-        temp_buffer1.append(temps[1] + TEMP_OFFSET[1])
         temp_buffer1.pop(0)
-        temp_buffer2.append(temps[2] + TEMP_OFFSET[2])
         temp_buffer2.pop(0)        
-        temp_buffer3.append(temps[3] + TEMP_OFFSET[3])
         temp_buffer3.pop(0)       
-        temp_buffer4.append(temps[4] + TEMP_OFFSET[4])
         temp_buffer4.pop(0)
+
+        # read the digital temperature sensor
+        digi_temp = read_digi_temp()
+        digi_temp_buffer.append(digi_temp)
+        digi_temp_buffer.pop(0)
 
         # read the pressure sensor
         pressure = pres_chan.pressure
-        pres_buffer.append(pressure)
+        # pres_buffer.append(pressure)
+        pres_buffer.append(0.)
         pres_buffer.pop(0)
 
         # save the data to csv file
         if recording:
             with open(csv_filename, "a", newline="") as csvfile:
                 csv_writer = csv.writer(csvfile)
-                csv_writer.writerow([timestamp] + temps + [pressure])  # 0 for pressure sensor for now
+                csv_writer.writerow([timestamp] + temps + [digi_temp] + [pressure])  # 0 for pressure sensor for now
         time.sleep(1. / DATA_RATE)  # Sleep 
 
 @app.route("/start_stop_recording", methods=["POST"])
@@ -251,8 +295,8 @@ def start_stop_recording():
         csv_filename = f"{downloads_directory}/{time.strftime('%Y-%m-%d_%H-%M-%S')}.csv"
         with open(csv_filename, "w", newline="") as csvfile:
             csv_writer = csv.writer(csvfile)
-            csv_writer.writerow(["Time", "Temperature Ch0","Temperature Ch1","Temperature Ch2",
-                                 "Temperature Ch3","Temperature Ch4","Pressure Data"])  # Add appropriate headers
+            csv_writer.writerow(["Time", "Temperature Ch1","Temperature Ch2","Temperature Ch3",
+                                 "Temperature Ch4","Temperature Ch5","Temperature Digital","Pressure Data"])  # Add appropriate headers
     return jsonify({"recording": recording})
 
 def plot_recorded_data():
@@ -275,8 +319,8 @@ def plot_recorded_data():
             temp_data2.append(float(row[3])) 
             temp_data3.append(float(row[4])) 
             temp_data4.append(float(row[5])) 
-            # pressure_data.append(float(row[6])) 
-            pressure_data.append(0) 
+            pressure_data.append(float(row[6])) 
+            # pressure_data.append(0) 
 
     # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
